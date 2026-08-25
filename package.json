@@ -1,0 +1,42 @@
+{
+  "name": "reborn-skills-all",
+  "version": "1.1.0",
+  "description": "산 스킬팩을 한 줄로 설치하고, 진짜 깔렸는지 확인까지 합니다 — 결제 후 받은 토큰이 필요합니다",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "skills",
+    "agent-skills",
+    "installer",
+    "skillpack"
+  ],
+  "homepage": "https://rebornlabs.kr/skillpack",
+  "bugs": {
+    "url": "https://mobility.rebornlabs.kr/cs"
+  },
+  "license": "MIT",
+  "author": "REBORN LABS",
+  "type": "module",
+  "bin": {
+    "reborn-skills-all": "install.mjs"
+  },
+  "files": [
+    "install.mjs",
+    "README.md",
+    "안내스킬_구매자.md",
+    "graph/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node install.mjs --self-test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reborn-labs-kr/reborn-skills-all.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
