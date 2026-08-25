@@ -37,7 +37,27 @@ const 인자 = process.argv.slice(2);
 const 확인만 = 인자.includes("--check");
 const 자기시험 = 인자.includes("--self-test");
 const 하나만 = (() => { const i = 인자.indexOf("--only"); return i >= 0 ? 인자[i + 1] : null; })();
-const 토큰 = 인자.find((a) => !a.startsWith("--") && a !== 하나만) || process.env.REBORN_SKILLPACK_TOKEN || "";
+/**
+ * 주문번호(토큰). 세 가지 형태를 다 받는다.
+ *
+ *   npx reborn-skills-all@latest q6jgc6sgnb            ← 옛 형태. 이미 나간 메일·화면에 이게 박혀 있다.
+ *   npx reborn-skills-all@latest --token=q6jgc6sgnb    ← 새 형태. 무엇인지 이름이 붙는다.
+ *   REBORN_SKILLPACK_TOKEN=... npx reborn-skills-all
+ *
+ * ★왜 `--token=` 을 더했나(2026-08-25 구매자 실사고).
+ *   맨 난수 문자열이 뒤에 붙은 명령은 사람에게도 기계에게도 **"정체 모를 열쇠"** 로 읽힌다.
+ *   구매자의 클로드가 실제로 그렇게 판정했다 — "q6jgc6sgnb: 토큰/세션 ID 처럼 보입니다".
+ *   이름을 붙이면 최소한 무엇인지가 드러난다.
+ *   ★★옛 형태를 절대 버리지 않는다. 이미 나간 메일과 완료화면에 그 줄이 박혀 있고,
+ *     그걸 깨면 이미 돈을 낸 사람의 명령이 조용히 죽는다.
+ */
+const 토큰 = (() => {
+  const 이름붙은 = 인자.find((a) => a.startsWith("--token="));
+  if (이름붙은) return 이름붙은.slice("--token=".length).trim();
+  const i = 인자.indexOf("--token");
+  if (i >= 0 && 인자[i + 1] && !인자[i + 1].startsWith("--")) return 인자[i + 1].trim();
+  return (인자.find((a) => !a.startsWith("--") && a !== 하나만) || process.env.REBORN_SKILLPACK_TOKEN || "").trim();
+})();
 
 const 서버 = process.env.REBORN_SKILLPACK_ORIGIN || "https://mobility.rebornlabs.kr";
 /** 막혔을 때 돌아갈 곳. **한 곳에만 적는다** — 여러 군데 적으면 주소가 갈린다. */

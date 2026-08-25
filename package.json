@@ -1,7 +1,7 @@
 {
   "name": "reborn-skills-all",
-  "version": "1.1.0",
-  "description": "산 스킬팩을 한 줄로 설치하고, 진짜 깔렸는지 확인까지 합니다 — 결제 후 받은 토큰이 필요합니다",
+  "version": "1.2.0",
+  "description": "산 스킬팩을 한 줄로 설치합니다 — 스킬 파일을 재배포하지 않고, 각 제작자의 공식 설치 명령을 대신 실행합니다. 결제 후 받은 주문번호가 필요합니다",
   "keywords": [
     "claude",
     "claude-code",
@@ -24,7 +24,8 @@
     "install.mjs",
     "README.md",
     "안내스킬_구매자.md",
-    "graph/"
+    "graph/",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=18"
