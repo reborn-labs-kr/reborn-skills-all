@@ -3,9 +3,9 @@
 산 스킬팩을 **한 줄로** 설치합니다. 결제 후 받은 주문번호가 필요합니다 → <https://rebornlabs.kr/skillpack>
 
 ```bash
-npx reborn-skills-all@latest <주문번호>
+npx --yes reborn-skills-all@latest <주문번호>
 # 또는
-npx reborn-skills-all@latest --token=<주문번호>
+npx --yes reborn-skills-all@latest --token=<주문번호>
 ```
 
 처음이시라면 그림처럼 적어 둔 안내가 있습니다 → <https://rebornlabs.kr/skillpack-guide>
@@ -20,10 +20,20 @@ npx reborn-skills-all@latest --token=<주문번호>
 |---|---|---|
 | 윈도우 명령 프롬프트 (`cmd`) | ✅ | 윈도우키 → `cmd` → 엔터 |
 | 맥 터미널 | ✅ | `command`+`스페이스` → `터미널` → 엔터 |
-| 컴퓨터에 깐 Claude Code | ✅ | 맨 앞에 `!` 를 붙여 `!npx reborn-skills-all@latest …` |
+| 컴퓨터에 깐 Claude Code | ✅ | 맨 앞에 `!` 를 붙여 `!npx --yes reborn-skills-all@latest …` |
 | **폰·브라우저의 Claude 앱** | ❌ | 그 화면은 원격 임시 컨테이너입니다. 설치돼도 **본인 컴퓨터에 남지 않습니다** |
 
-Node.js 18 이상이 필요합니다. `npx` 를 모르는 명령이라고 하면 <https://nodejs.org> 에서 먼저 설치하세요.
+### 준비물 두 가지
+
+| 무엇 | 없으면 | 설치 |
+|---|---|---|
+| **Node.js 18 이상** | `npx` 를 모르는 명령이라고 합니다 | <https://nodejs.org> |
+| **git** | 스킬이 **한 종도 안 깔립니다** — 전부 「실패」로 나옵니다 | 윈도우 `winget install --id Git.Git -e --source winget` · 맥 `xcode-select --install` |
+
+스킬을 내려받는 일은 속에서 git 이 합니다. **윈도우에는 git 이 기본으로 안 깔려 있습니다.**
+깐 뒤에는 **검은 창을 닫고 새로 여세요** — 열려 있던 창은 옛 환경을 그대로 들고 있어서, 깔고도 똑같이 실패합니다.
+
+설치기가 시작할 때 이 둘을 먼저 봅니다. 없으면 **주문번호를 쓰기 전에** 멈추므로 설치 횟수는 줄지 않습니다.
 
 ---
 

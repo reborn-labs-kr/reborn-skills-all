@@ -2,10 +2,10 @@
 /**
  * 스킬팩 설치기 — **깔고, 진짜 깔렸는지 확인한다.**
  *
- *   npx reborn-skills-all@latest <토큰>        산 것을 전부 설치
- *   npx reborn-skills-all <토큰> --check       설치하지 않고 지금 상태만 본다
- *   npx reborn-skills-all <토큰> --only design 묶음 하나만
- *   npx reborn-skills-all --self-test          검사기 자체 시험(설치 안 함)
+ *   npx --yes reborn-skills-all@latest <토큰>        산 것을 전부 설치
+ *   npx --yes reborn-skills-all <토큰> --check       설치하지 않고 지금 상태만 본다
+ *   npx --yes reborn-skills-all <토큰> --only design 묶음 하나만
+ *   npx --yes reborn-skills-all --self-test          검사기 자체 시험(설치 안 함)
  *
  * ★★파는 것은 스킬이 아니라 **설치 대행**이다.
  *   스킬은 전부 남이 만든 무료 오픈소스다. 우리가 하는 일은 셋이다 —
@@ -40,9 +40,9 @@ const 하나만 = (() => { const i = 인자.indexOf("--only"); return i >= 0 ? �
 /**
  * 주문번호(토큰). 세 가지 형태를 다 받는다.
  *
- *   npx reborn-skills-all@latest q6jgc6sgnb            ← 옛 형태. 이미 나간 메일·화면에 이게 박혀 있다.
- *   npx reborn-skills-all@latest --token=q6jgc6sgnb    ← 새 형태. 무엇인지 이름이 붙는다.
- *   REBORN_SKILLPACK_TOKEN=... npx reborn-skills-all
+ *   npx --yes reborn-skills-all@latest q6jgc6sgnb            ← 옛 형태. 이미 나간 메일·화면에 이게 박혀 있다.
+ *   npx --yes reborn-skills-all@latest --token=q6jgc6sgnb    ← 새 형태. 무엇인지 이름이 붙는다.
+ *   REBORN_SKILLPACK_TOKEN=... npx --yes reborn-skills-all
  *
  * ★왜 `--token=` 을 더했나(2026-08-25 구매자 실사고).
  *   맨 난수 문자열이 뒤에 붙은 명령은 사람에게도 기계에게도 **"정체 모를 열쇠"** 로 읽힌다.
@@ -196,13 +196,33 @@ async function 받아오기(토큰) {
 }
 
 /* ── 선행 조건 ─────────────────────────────────────────────────────────── */
-export function 선행조건() {
+/* ★`git검사` 를 인자로 받는다. 시험이 **git 이 깔린 PC 에서도** 「없을 때」를 재려면
+   없는 상태를 실제로 만들 수 있어야 한다. 기본값은 진짜 명령이라 본 실행은 그대로다. */
+export function 선행조건(git검사 = "git --version") {
   const 탈 = [];
   const major = Number(process.versions.node.split(".")[0]);
   if (major < 18) 탈.push(`Node 가 ${process.versions.node} 입니다. 18 이상이 필요합니다 → https://nodejs.org`);
   const r = spawnSync("npx --version", { encoding: "utf8", timeout: 60000, windowsHide: true, shell: true });
   if (r.status !== 0) 탈.push("npx 를 실행하지 못했습니다. Node.js 를 다시 설치해 주세요.");
   if (!existsSync(join(HOME, ".claude"))) 탈.push("~/.claude 폴더가 없습니다. 클로드 코드를 한 번 실행한 뒤 다시 돌려 주세요.");
+  /* ★★git 이 없으면 **48종이 전부 실패한다.** 속 도구인 `skills` 가 simple-git 으로
+       시스템 `git` 실행파일을 불러 레포를 clone 하기 때문이다. 윈도우에는 git 이 기본으로
+       깔려 있지 않다 — 그래서 이건 드문 일이 아니라 **흔한 첫 실행**이다.
+     ★여기서 안 막으면 화면에는 빨간 「실패」만 48줄 내려가고, 왜인지는 아무 데도 안 적힌다.
+       돈을 낸 직후의 손님에게 그 화면을 보이면 안 된다 (2026-09-18 실제 CS).
+     ★검사는 `--version` 으로 한다. clone 을 시켜 보는 건 느리고, 네트워크 탓과 섞인다. */
+  const g = spawnSync(git검사, { encoding: "utf8", timeout: 60000, windowsHide: true, shell: true });
+  if (g.status !== 0) {
+    탈.push(
+      "git 이 없습니다. 스킬을 내려받는 데 git 이 꼭 필요합니다 — 이것 없이는 한 종도 깔리지 않습니다.\n"
+      + (process.platform === "win32"
+        ? "    설치: 명령 프롬프트에 winget install --id Git.Git -e --source winget\n"
+          + "    ★깐 뒤에는 이 검은 창을 닫고 새로 열어야 합니다. 열려 있던 창은 옛 환경을 그대로 들고 있습니다."
+        : process.platform === "darwin"
+          ? "    설치: xcode-select --install  (또는 brew install git)"
+          : "    설치: sudo apt install git  (또는 각 배포판의 패키지 관리자)")
+    );
+  }
   return 탈;
 }
 
@@ -472,6 +492,19 @@ if (자기시험) {
   const 아무거나 = [...폴더].find((n) => 파일로있나(n).ok);
   T("이미 있는 스킬은 파일로 잡힌다(없으면 건너뜀)", !아무거나 || 파일로있나(아무거나).ok);
 
+  /* ★git 검사 (2026-09-18 CS 이후 신설).
+     속 도구 `skills` 가 simple-git 으로 시스템 git 을 불러 clone 한다 —
+     git 이 없으면 48종이 **전부** 실패한다. 그 검사가 살아 있는지 양방향으로 잰다.
+     ★소스를 정규식으로 베껴 대조하지 않는다. 진짜 함수를 부른다. */
+  const git탈뽑기 = (검사) => 선행조건(검사).filter((t) => t.startsWith("git 이 없습니다"));
+  /* ★★없는 상태를 **실제로 만들어** 잰다. 이 PC 에 git 이 있어도 재진다.
+       앞 판은 `git있나 ? …` 로 갈라 놓아서, git 이 깔린 PC 에서는 검사를 통째로 죽여도
+       33건이 전부 초록으로 찍혔다 — 아무것도 안 재는 관문이었다. */
+  T("★git 이 없으면 막는다", git탈뽑기("gitzzz-없는명령 --version").length === 1);
+  T("★git 이 있으면 안 막는다", git탈뽑기("git --version").length === 0);
+  T("★안내에 설치 명령이 들어 있다",
+    /winget|brew|apt|xcode-select/.test(git탈뽑기("gitzzz-없는명령 --version")[0] || ""));
+
   const 실패 = 시험.filter(([, ok]) => !ok);
   for (const [n, ok] of 시험) console.log(`${ok ? c.g + "  ✓" : c.r + "  ✗"} ${n}${c[0]}`);
   console.log(실패.length ? `${c.r}${c.b}\n  ${실패.length}건 실패${c[0]}\n` : `${c.g}${c.b}\n  ${시험.length}건 전부 통과${c[0]}\n`);
@@ -534,7 +567,7 @@ async function main() {
 
   if (!토큰) {
     줄(`${c.y}  결제 완료 화면의 명령을 그대로 붙여넣어 주세요.${c[0]}`);
-    줄(`${c.d}    예)  npx reborn-skills-all@latest a3f9c21b${c[0]}`);
+    줄(`${c.d}    예)  npx --yes reborn-skills-all@latest a3f9c21b${c[0]}`);
     줄(`${c.d}\n  아직 안 사셨다면 → https://rebornlabs.kr/skillpack${c[0]}`);
     줄(`${c.d}  쓰는 법     → ${안내}${c[0]}\n`);
     return 끝내기(1);
