@@ -37,6 +37,8 @@ const 인자 = process.argv.slice(2);
 const 확인만 = 인자.includes("--check");
 const 자기시험 = 인자.includes("--self-test");
 const 하나만 = (() => { const i = 인자.indexOf("--only"); return i >= 0 ? 인자[i + 1] : null; })();
+/** `--lang=en` · `--lang=ko`. 안 주면 이 컴퓨터의 로케일로 정한다(→ `말정하기`). */
+const 말강제 = (인자.find((a) => a.startsWith("--lang=")) || "").slice(7).toLowerCase();
 /**
  * 주문번호(토큰). 세 가지 형태를 다 받는다.
  *
@@ -61,7 +63,127 @@ const 토큰 = (() => {
 
 const 서버 = process.env.REBORN_SKILLPACK_ORIGIN || "https://mobility.rebornlabs.kr";
 /** 막혔을 때 돌아갈 곳. **한 곳에만 적는다** — 여러 군데 적으면 주소가 갈린다. */
-const 안내 = "https://rebornlabs.kr/skillpack-guide";
+/**
+ * 어느 말로 말할 것인가. (2026-09-20 · 영어권 1차)
+ *
+ * ★★**이 설치기가 영어권 고객이 실제로 받는 것이다.** 인계 §H 가 손본 것은
+ *   `claudekit/skills2kit`(스킬팩2 · `reborn-skills2`) 이고, $8 스킬팩이 보내는 명령은
+ *   `reborn-skills-all` — **이 파일**이다. 그래서 여기에도 갈래가 있어야 한다.
+ * ★고객 컴퓨터의 로케일이 곧 그 사람이 읽는 말이다. 서버에 묻지 않는다 —
+ *   토큰 검증에는 국경이 없고, 그쪽은 고치지 않는다(인계 §C).
+ * ★못 읽으면 한국어로 떨어진다. 지금 사는 사람의 절대다수가 한국 고객이라,
+ *   판정이 실패했을 때 덜 틀리는 쪽이 그쪽이다.
+ */
+export function 말정하기(강제) {
+  if (강제 === "en" || 강제 === "ko") return 강제;
+  try {
+    return /^ko\b/i.test(Intl.DateTimeFormat().resolvedOptions().locale || "") ? "ko" : "en";
+  } catch { return "ko"; }
+}
+
+/**
+ * 화면에 찍는 말. **색은 여기 넣지 않는다** — 부르는 쪽이 입힌다.
+ *
+ * ★한국어 문구는 **한 글자도 바꾸지 않았다.** 옮겨 담기만 했다.
+ *   말을 고치는 것과 갈래를 내는 것을 같이 하면 무엇이 깨졌는지 못 가린다.
+ * ★영문은 번역이 아니라 **그 자리에서 할 말**이다. 주소부터 다르다 —
+ *   영문 고객을 한국어 안내 페이지로 보내면 받으러 왔다가 돌아선다(인계 §6-2⑦).
+ */
+const 글표 = {
+  ko: {
+    안내주소: "https://rebornlabs.kr/skillpack-guide",
+    착지주소: "https://rebornlabs.kr/skillpack",
+    제목: "스킬팩 설치기",
+    팩기본: "스킬팩",
+    종: (n) => `${n}종`,
+    토큰없음: "결제 완료 화면의 명령을 그대로 붙여넣어 주세요.",
+    토큰예: "예)  npx --yes reborn-skills-all@latest a3f9c21b",
+    아직안샀다면: (주소) => `아직 안 사셨다면 → ${주소}`,
+    쓰는법: (주소) => `쓰는 법     → ${주소}`,
+    목록빔: "받을 스킬 목록이 비어 있습니다. 고객센터로 알려 주세요 — https://mobility.rebornlabs.kr/cs",
+    깔려있다: (있음, 전체) => `${있음} / ${전체} 깔려 있습니다.`,
+    등급: { 완료: "완료", 이미: "이미", 반쪽: "반쪽", 실패: "실패" },
+    셈: { 완료: (n) => `완료 ${n}`, 이미: (n) => `이미 ${n}`, 반쪽: (n) => `반쪽 ${n}`, 실패: (n) => `실패 ${n}` },
+    탈난것머리: "아래는 자동으로 깔리지 않았습니다. 직접 깔 수 있게 주소를 남깁니다.",
+    막히면: "잘 안 되면 고객센터로 알려 주세요 → https://mobility.rebornlabs.kr/cs",
+    라이선스1: "이 설치기는 파일을 복사해 오지 않고 각 스킬의 공식 설치 명령을 부릅니다.",
+    라이선스2: "만든 곳과 라이선스는 각 스킬 폴더의 원문에 그대로 있습니다.",
+    재시작: "클로드 코드를 껐다 켜면 새 스킬이 잡힙니다.",
+    안내심음1: "반복되는 일을 찾아 주는 안내를 함께 넣었습니다.",
+    안내심음2: (자리) => `${자리}  (필요 없으면 지우셔도 됩니다)`,
+    /* 받아오기 */
+    못닿음: (왜) => `서버에 닿지 못했습니다(${왜}). 잠시 뒤 다시 시도해 주세요.`,
+    토큰못찾음: "토큰이 확인되지 않았습니다. 결제 완료 화면의 명령을 그대로 다시 붙여넣어 주세요.",
+    횟수다씀: "이 토큰의 사용 횟수를 다 썼습니다. 고객센터로 알려 주시면 다시 열어 드립니다 — https://mobility.rebornlabs.kr/cs",
+    서버코드: (코드) => `서버가 ${코드} 을 돌려주었습니다. 잠시 뒤 다시 시도해 주세요.`,
+    응답못읽음: "서버 응답을 읽지 못했습니다. 잠시 뒤 다시 시도해 주세요.",
+    응답이상: "서버 응답이 예상과 다릅니다. 잠시 뒤 다시 시도해 주시고, 그래도 같으면 "
+      + "고객센터로 알려 주세요 — https://mobility.rebornlabs.kr/cs",
+    /* 선행조건 */
+    노드낮음: (판) => `Node 가 ${판} 입니다. 18 이상이 필요합니다 → https://nodejs.org`,
+    npx못돎: "npx 를 실행하지 못했습니다. Node.js 를 다시 설치해 주세요.",
+    클로드없음: "~/.claude 폴더가 없습니다. 클로드 코드를 한 번 실행한 뒤 다시 돌려 주세요.",
+    git없음: "git 이 없습니다. 스킬을 내려받는 데 git 이 꼭 필요합니다 — 이것 없이는 한 종도 깔리지 않습니다.",
+    git윈: "    설치: 명령 프롬프트에 winget install --id Git.Git -e --source winget\n"
+      + "    ★깐 뒤에는 이 검은 창을 닫고 새로 열어야 합니다. 열려 있던 창은 옛 환경을 그대로 들고 있습니다.",
+    git맥: "    설치: xcode-select --install  (또는 brew install git)",
+    git리눅스: "    설치: sudo apt install git  (또는 각 배포판의 패키지 관리자)",
+    /* 하나설치 */
+    이미깔림: "이미 깔려 있습니다",
+    새것없음: "새로 생긴 스킬이 없습니다",
+    반쪽설명: (들) => `폴더는 생겼는데 SKILL.md 가 성하지 않습니다 (${들})`,
+  },
+  en: {
+    안내주소: "https://rebornlabs.kr/en/skillpack-guide",
+    착지주소: "https://rebornlabs.kr/en/skillpack",
+    제목: "Skill Pack Installer",
+    팩기본: "Skill Pack",
+    종: (n) => `${n} skills`,
+    토큰없음: "Paste the command from your confirmation page exactly as it is.",
+    토큰예: "e.g.  npx --yes reborn-skills-all@latest a3f9c21b",
+    아직안샀다면: (주소) => `Haven't bought it yet → ${주소}`,
+    쓰는법: (주소) => `How to use it  → ${주소}`,
+    목록빔: "Your skill list came back empty. Please let us know — https://mobility.rebornlabs.kr/cs",
+    깔려있다: (있음, 전체) => `${있음} of ${전체} are installed.`,
+    등급: { 완료: "done", 이미: "already", 반쪽: "partial", 실패: "failed" },
+    셈: { 완료: (n) => `${n} done`, 이미: (n) => `${n} already`, 반쪽: (n) => `${n} partial`, 실패: (n) => `${n} failed` },
+    탈난것머리: "These did not install on their own. Here is where to get each one directly.",
+    막히면: "Still stuck? Tell us and we will help → https://mobility.rebornlabs.kr/cs",
+    라이선스1: "This installer copies no files. It runs each skill's own official install command.",
+    라이선스2: "The author and license of each skill stay in that skill's folder, unchanged.",
+    재시작: "Restart Claude Code and the new skills come up.",
+    안내심음1: "We also added a short help note so Claude can answer questions about your Skill Pack.",
+    안내심음2: (자리) => `${자리}  (delete it if you don't want it)`,
+    /* 받아오기 */
+    못닿음: (왜) => `Could not reach the server (${왜}). Please try again in a moment.`,
+    토큰못찾음: "We could not verify that order number. Please paste the command from your confirmation page again, exactly as it is.",
+    횟수다씀: "This order number has used up its installs. Tell us and we will open it again — https://mobility.rebornlabs.kr/cs",
+    서버코드: (코드) => `The server returned ${코드}. Please try again in a moment.`,
+    응답못읽음: "Could not read the server's reply. Please try again in a moment.",
+    응답이상: "The server's reply was not what we expected. Please try again in a moment, and if it "
+      + "keeps happening, tell us — https://mobility.rebornlabs.kr/cs",
+    /* 선행조건 */
+    노드낮음: (판) => `You are on Node ${판}. Version 18 or newer is required → https://nodejs.org`,
+    npx못돎: "Could not run npx. Please reinstall Node.js.",
+    클로드없음: "There is no ~/.claude folder yet. Run Claude Code once, then run this again.",
+    git없음: "git is not installed. Skills are downloaded with git — without it, nothing will install.",
+    git윈: "    Install: run  winget install --id Git.Git -e --source winget\n"
+      + "    Note: close this window and open a new one afterwards. An open window keeps the old environment.",
+    git맥: "    Install: xcode-select --install  (or brew install git)",
+    git리눅스: "    Install: sudo apt install git  (or your distribution's package manager)",
+    /* 하나설치 */
+    이미깔림: "already installed",
+    새것없음: "no new skill appeared",
+    반쪽설명: (들) => `the folder appeared but its SKILL.md is not intact (${들})`,
+  },
+};
+
+/** 이번 실행이 쓰는 말. */
+const 말 = 말정하기(말강제);
+/** 화면 문구. 부르는 쪽은 `G.무엇` 으로 쓴다. */
+const G = 글표[말];
+
+const 안내 = G.안내주소;
 
 const c = { g: "\x1b[32m", r: "\x1b[31m", y: "\x1b[33m", d: "\x1b[90m", cy: "\x1b[36m", b: "\x1b[1m", 0: "\x1b[0m" };
 
@@ -162,21 +284,21 @@ async function 받아오기(토큰) {
       body: JSON.stringify({ token: 토큰, only: 하나만 || null, v: 1 }),
     });
   } catch (e) {
-    return { ok: false, 이유: `서버에 닿지 못했습니다(${e?.message || "네트워크"}). 잠시 뒤 다시 시도해 주세요.` };
+    return { ok: false, 이유: G.못닿음(e?.message || (말 === "en" ? "network" : "네트워크")) };
   }
 
   if (!res.ok) {
     if (res.status === 404 || res.status === 403) {
-      return { ok: false, 이유: "토큰이 확인되지 않았습니다. 결제 완료 화면의 명령을 그대로 다시 붙여넣어 주세요." };
+      return { ok: false, 이유: G.토큰못찾음 };
     }
     if (res.status === 429) {
-      return { ok: false, 이유: "이 토큰의 사용 횟수를 다 썼습니다. 고객센터로 알려 주시면 다시 열어 드립니다 — https://mobility.rebornlabs.kr/cs" };
+      return { ok: false, 이유: G.횟수다씀 };
     }
-    return { ok: false, 이유: `서버가 ${res.status} 을 돌려주었습니다. 잠시 뒤 다시 시도해 주세요.` };
+    return { ok: false, 이유: G.서버코드(res.status) };
   }
   let 몸통;
   try { 몸통 = await res.json(); }
-  catch { return { ok: false, 이유: "서버 응답을 읽지 못했습니다. 잠시 뒤 다시 시도해 주세요." }; }
+  catch { return { ok: false, 이유: G.응답못읽음 }; }
 
   /* ★200 인데 모양이 다를 수 있다 — 배포가 어긋났거나, 중간의 프록시·와이파이 로그인 화면이
      제 JSON 을 돌려줄 때가 그렇다. 그때 이 함수가 그 몸통을 그대로 돌려주면
@@ -185,12 +307,13 @@ async function 받아오기(토큰) {
      ★★돈을 낸 직후의 손님에게 이런 화면을 보이면 안 된다. 그게 이번 사고의 교훈이다.
      (2026-08-25: 되받아 돌려 보다가 실제로 이 화면을 봤다.) */
   if (!몸통 || typeof 몸통 !== "object" || 몸통.ok !== true) {
-    if (몸통 && typeof 몸통.이유 === "string") return { ok: false, 이유: 몸통.이유 };
-    return {
-      ok: false,
-      이유: "서버 응답이 예상과 다릅니다. 잠시 뒤 다시 시도해 주시고, 그래도 같으면 "
-        + "고객센터로 알려 주세요 — https://mobility.rebornlabs.kr/cs",
-    };
+    /* ★서버가 주는 `이유` 는 **한국어다.** 서버는 고치지 않는다(인계 §4 — 라이브 결제 경로).
+       그래서 영어로 도는 실행에서는 **읽을 수 없는 글을 그대로 띄우지 않고** 우리 문구로 바꾼다.
+       읽을 수 없는 안내는 안내가 아니라 막다른 길이다. */
+    if (몸통 && typeof 몸통.이유 === "string" && !(말 === "en" && /[가-힣]/.test(몸통.이유))) {
+      return { ok: false, 이유: 몸통.이유 };
+    }
+    return { ok: false, 이유: G.응답이상 };
   }
   return 몸통;
 }
@@ -198,13 +321,13 @@ async function 받아오기(토큰) {
 /* ── 선행 조건 ─────────────────────────────────────────────────────────── */
 /* ★`git검사` 를 인자로 받는다. 시험이 **git 이 깔린 PC 에서도** 「없을 때」를 재려면
    없는 상태를 실제로 만들 수 있어야 한다. 기본값은 진짜 명령이라 본 실행은 그대로다. */
-export function 선행조건(git검사 = "git --version") {
+export function 선행조건(git검사 = "git --version", T = G) {
   const 탈 = [];
   const major = Number(process.versions.node.split(".")[0]);
-  if (major < 18) 탈.push(`Node 가 ${process.versions.node} 입니다. 18 이상이 필요합니다 → https://nodejs.org`);
+  if (major < 18) 탈.push(T.노드낮음(process.versions.node));
   const r = spawnSync("npx --version", { encoding: "utf8", timeout: 60000, windowsHide: true, shell: true });
-  if (r.status !== 0) 탈.push("npx 를 실행하지 못했습니다. Node.js 를 다시 설치해 주세요.");
-  if (!existsSync(join(HOME, ".claude"))) 탈.push("~/.claude 폴더가 없습니다. 클로드 코드를 한 번 실행한 뒤 다시 돌려 주세요.");
+  if (r.status !== 0) 탈.push(T.npx못돎);
+  if (!existsSync(join(HOME, ".claude"))) 탈.push(T.클로드없음);
   /* ★★git 이 없으면 **48종이 전부 실패한다.** 속 도구인 `skills` 가 simple-git 으로
        시스템 `git` 실행파일을 불러 레포를 clone 하기 때문이다. 윈도우에는 git 이 기본으로
        깔려 있지 않다 — 그래서 이건 드문 일이 아니라 **흔한 첫 실행**이다.
@@ -214,28 +337,25 @@ export function 선행조건(git검사 = "git --version") {
   const g = spawnSync(git검사, { encoding: "utf8", timeout: 60000, windowsHide: true, shell: true });
   if (g.status !== 0) {
     탈.push(
-      "git 이 없습니다. 스킬을 내려받는 데 git 이 꼭 필요합니다 — 이것 없이는 한 종도 깔리지 않습니다.\n"
-      + (process.platform === "win32"
-        ? "    설치: 명령 프롬프트에 winget install --id Git.Git -e --source winget\n"
-          + "    ★깐 뒤에는 이 검은 창을 닫고 새로 열어야 합니다. 열려 있던 창은 옛 환경을 그대로 들고 있습니다."
-        : process.platform === "darwin"
-          ? "    설치: xcode-select --install  (또는 brew install git)"
-          : "    설치: sudo apt install git  (또는 각 배포판의 패키지 관리자)")
+      T.git없음 + "\n"
+      + (process.platform === "win32" ? T.git윈
+        : process.platform === "darwin" ? T.git맥
+          : T.git리눅스)
     );
   }
   return 탈;
 }
 
 /* ── 하나 설치하기 ─────────────────────────────────────────────────────── */
-function 하나설치(s, 이미깔린레포) {
+function 하나설치(s, 이미깔린레포, T = G) {
   /* ★★"이미 있나"는 **스킬 단위로** 본다. 레포 단위로 보면 안 된다.
        레포 하나가 스킬을 여럿 심고(ponytail 은 셋, caveman 은 아홉) 우리는 그중 골라서 판다.
        레포로 판정하면 **그 레포에서 스킬 하나만 갖고 있던 고객**이 나머지를 산 뒤에도
        전부 "이미 깔려 있습니다"로 건너뛴다 — 돈을 내고 못 받는 것이고, 화면은 초록으로 뜬다.
      ★그래서 파일(폴더+SKILL.md)이 실제로 있는지를 본다. 레포 목록은 참고만 한다. */
-  if (s.skill && 파일로있나(s.skill).ok) return { 등급: "이미", 설명: "이미 깔려 있습니다" };
+  if (s.skill && 파일로있나(s.skill).ok) return { 등급: "이미", 설명: T.이미깔림 };
   //: 스킬 이름을 모르는 항목(옛 응답)만 레포로 떨어뜨린다.
-  if (!s.skill && 이미깔린레포.has(String(s.repo).toLowerCase())) return { 등급: "이미", 설명: "이미 깔려 있습니다" };
+  if (!s.skill && 이미깔린레포.has(String(s.repo).toLowerCase())) return { 등급: "이미", 설명: T.이미깔림 };
 
   const 전 = 폴더찍기();
   const args = ["-y", "skills@latest", "add", s.repo];
@@ -249,12 +369,12 @@ function 하나설치(s, 이미깔린레포) {
     // ★종료코드가 0 이어도 여기서 잡힌다 — 아무것도 안 생겼으면 안 깔린 것이다.
     const 끝줄 = (String(r.stderr || "") + String(r.stdout || ""))
       .replace(/\x1b\[[0-9;]*m/g, "").split(/\r?\n/).filter((x) => x.trim()).slice(-1)[0] || "";
-    return { 등급: "실패", 설명: 끝줄.trim().slice(0, 110) || "새로 생긴 스킬이 없습니다" };
+    return { 등급: "실패", 설명: 끝줄.trim().slice(0, 110) || T.새것없음 };
   }
 
   // ★생겼다고 다 된 게 아니다. 머리말까지 본다.
   const 성한것 = 새로.filter((n) => 파일로있나(n).ok);
-  if (성한것.length === 0) return { 등급: "반쪽", 설명: `폴더는 생겼는데 SKILL.md 가 성하지 않습니다 (${새로.join(", ")})` };
+  if (성한것.length === 0) return { 등급: "반쪽", 설명: T.반쪽설명(새로.join(", ")) };
 
   /* ★부탁한 것이 그대로 깔렸으면 **이름을 다시 적지 않는다.**
      왼쪽에 이미 그 이름이 있어서 `brainstorming  완료 brainstorming` 처럼 두 번 나온다 —
@@ -285,7 +405,16 @@ const 이름 = (s) => String(s.skill || s.repo);
    ★이 주석에도 별과 슬래시를 붙여 쓰지 않는다. 그 조합은 주석을 거기서 끝내 버린다
      (같은 사고를 이 자리에서 한 번 더 냈다).
    split/join 은 이스케이프가 없어 그 사고가 원천적으로 안 난다. */
-const 한줄 = (s) => String(s.ko || "").split("**").join("");
+/**
+ * 스킬 한 줄 설명.
+ *
+ * ★★**서버는 `ko` 만 준다.** 영어로 도는데 `ko` 를 찍으면 읽을 수 없는 줄이 48개 내려간다.
+ *   그래서 영어일 때는 `en` 이 있을 때만 쓰고, 없으면 **아무 말도 하지 않는다** —
+ *   읽을 수 없는 글은 정보가 아니라 잡음이다. 서버에 `en` 이 붙는 날 저절로 살아난다.
+ * ★기본값을 `"ko"` 로 둔 것은 자기시험 때문이다. 시험은 `한줄({ ko: ... })` 로 부른다 —
+ *   전역 로케일에 기대게 만들면 **영어 PC 에서 시험이 실패한다.**
+ */
+const 한줄 = (s, ㄹ = "ko") => String((ㄹ === "en" ? s.en : s.ko) || "").split("**").join("");
 
 /* ── 계단 ② · 구매자 안내 심기 ──────────────────────────────────────────
    ★★이게 「계단」의 둘째 칸이다. (2026-08-24 대표 지시)
@@ -321,6 +450,19 @@ const 한줄 = (s) => String(s.ko || "").split("**").join("");
  *   그러면 "자리표시자가 그대로 나갔다" 같은 사고를 배포하고 나서야 안다 —
  *   화면에 `{{링크}}` 가 대놓고 보이는 사고다.
  */
+/**
+ * 영문 구매자 도움말 본문(2026-09-24 · 해외 전략 변경 뒤). **판촉이 없다** — 자비스 풀스택은 한국 전용이라
+ * 영어권 구매자에게 권할 다음 제품이 없다. 설치한 스킬 쓰는 법 · 안 될 때 · 환불 · 문의만 담는다.
+ * 파일을 쓰지 않는다(자기시험이 본문을 직접 본다 — 한국 함수와 같은 이유).
+ */
+function 구매자안내본문En(원문, { 팩이름, 깔린수, 전체수 }) {
+  const 구매정보 = [
+    `- **They bought the Skill Pack** — ${팩이름} · ${깔린수}/${전체수} skills installed`,
+    "- ★They already own it. **Don't offer it again.**",
+  ].join("\n");
+  return String(원문).split("{{구매정보}}").join(구매정보);
+}
+
 function 구매자안내본문(원문, { 팩이름, 깔린수, 전체수, 기존 = "" }) {
   /* 먼저 들어온 문(무료 미끼)을 읽어 둔다. 무료 판이 남긴 형식이다.
      ★버리지 않는다 — 덮어써서 없애면 "스킬로 들어와 스킬팩까지 산 사람"이라는 사실이 사라진다. */
@@ -355,16 +497,19 @@ function 구매자안내본문(원문, { 팩이름, 깔린수, 전체수, 기존
 }
 
 function 구매자안내심기(정보) {
-  const 원본 = join(여기, "안내스킬_구매자.md");
+  const en = 정보.말 === "en";
+  const 원본 = join(여기, en ? "안내스킬_구매자.en.md" : "안내스킬_구매자.md");
   if (!existsSync(원본)) return false;   // 누가 빼고 배포했어도 설치는 굴러가야 한다
   try {
-    const 폴더 = join(HOME, ".claude", "skills", "reborn-claudekit");
+    // ★영문은 자리가 다르다 — `reborn-claudekit` 은 자비스(한국 제품) 안내 자리다. 영어권에 그 이름을 심지 않는다
+    const 폴더 = join(HOME, ".claude", "skills", en ? "reborn-skillpack" : "reborn-claudekit");
     const 파일 = join(폴더, "SKILL.md");
     const 기존 = existsSync(파일) ? readFileSync(파일, "utf8") : "";
 
-    const 본문 = 구매자안내본문(readFileSync(원본, "utf8"), { ...정보, 기존 });
+    const 본문 = en ? 구매자안내본문En(readFileSync(원본, "utf8"), 정보) : 구매자안내본문(readFileSync(원본, "utf8"), { ...정보, 기존 });
     mkdirSync(폴더, { recursive: true });
     writeFileSync(파일, 본문, "utf8");
+    if (en) return 폴더;   // 영문판은 근거 그래프(자비스 기능표)가 필요 없다
 
     /* 근거 파일. 없으면 그냥 넘어간다 — 안내는 "모르면 모른다고" 로 굴러간다. */
     const 짐 = join(여기, "graph");
@@ -437,6 +582,14 @@ if (자기시험) {
   T("★자리표시자가 정본에 남아 있다(잃으면 채울 자리가 없다)",
     구매자원문.includes("{{구매정보}}") && 구매자원문.includes("{{링크}}"));
   T("★구매자 판은 클로드킷을 말한다", /클로드킷|자비스 풀스택/.test(구매자원문));
+  /* 영문 구매자 판(2026-09-24) — 자비스는 한국 전용이라 **판촉이 없어야** 한다 */
+  const 영문원문 = (() => { try { return readFileSync(join(여기, "안내스킬_구매자.en.md"), "utf8"); } catch { return ""; } })();
+  const 영문본문 = 구매자안내본문En(영문원문, { 팩이름: "Full pack", 깔린수: 47, 전체수: 48 });
+  T("★영문 구매자 판이 패키지에 있다", 영문원문.length > 1000 && 영문원문.includes("{{구매정보}}"));
+  T("★영문 구매자 판에 한글이 없다(채운 뒤)", !/[가-힣]/.test(영문본문));
+  T("★영문 구매자 판은 자비스·클로드킷을 권하지 않는다", !/claudekit|jarvis|full-?stack/i.test(영문본문.replace(/reborn-claudekit/g, "")));
+  T("★영문 구매자 판의 자리표시자가 채워진다", !영문본문.includes("{{") && 영문본문.includes("47/48"));
+  T("★영문 구매자 판의 name 은 reborn-skillpack", /^name: reborn-skillpack$/m.test(영문원문));
   T("★구매자 판에 「일감 진단」이 있다", 구매자원문.includes("일감 진단"));
   T("★구매자 판은 스킬팩을 다시 권하지 않는다",
     구매자원문.includes("다시 권하지 마세요") && !구매자원문.includes("rebornlabs.kr/skillpack"));
@@ -556,7 +709,7 @@ const 끝내기 = (코드) => { process.exitCode = 코드; };
 
 
 async function main() {
-  줄(`\n${c.b}${c.cy}  스킬팩 설치기${c[0]}  ${c.d}REBORN LABS${c[0]}\n`);
+  줄(`\n${c.b}${c.cy}  ${G.제목}${c[0]}  ${c.d}REBORN LABS${c[0]}\n`);
 
   const 탈 = 선행조건();
   if (탈.length) {
@@ -566,10 +719,10 @@ async function main() {
   }
 
   if (!토큰) {
-    줄(`${c.y}  결제 완료 화면의 명령을 그대로 붙여넣어 주세요.${c[0]}`);
-    줄(`${c.d}    예)  npx --yes reborn-skills-all@latest a3f9c21b${c[0]}`);
-    줄(`${c.d}\n  아직 안 사셨다면 → https://rebornlabs.kr/skillpack${c[0]}`);
-    줄(`${c.d}  쓰는 법     → ${안내}${c[0]}\n`);
+    줄(`${c.y}  ${G.토큰없음}${c[0]}`);
+    줄(`${c.d}    ${G.토큰예}${c[0]}`);
+    줄(`${c.d}\n  ${G.아직안샀다면(G.착지주소)}${c[0]}`);
+    줄(`${c.d}  ${G.쓰는법(안내)}${c[0]}\n`);
     return 끝내기(1);
   }
 
@@ -577,8 +730,10 @@ async function main() {
   if (!받은것.ok) { 줄(`${c.r}  ✗ ${받은것.이유}${c[0]}\n`); return 끝내기(1); }
 
   const 스킬들 = 받은것.skills || [];
-  if (!스킬들.length) { 줄(`${c.r}  ✗ 받을 스킬 목록이 비어 있습니다. 고객센터로 알려 주세요 — https://mobility.rebornlabs.kr/cs${c[0]}\n`); return 끝내기(1); }
-  줄(`  ${c.b}${받은것.packLabel || "스킬팩"}${c[0]}  ${c.d}${스킬들.length}종${c[0]}\n`);
+  if (!스킬들.length) { 줄(`${c.r}  ✗ ${G.목록빔}${c[0]}\n`); return 끝내기(1); }
+  /* ★`packLabel` 은 서버가 주는 한국어 이름이다. 영어로 도는 실행에서는 우리 이름을 쓴다. */
+  const 팩이름 = (말 === "en" && /[가-힣]/.test(String(받은것.packLabel || ""))) ? G.팩기본 : (받은것.packLabel || G.팩기본);
+  줄(`  ${c.b}${팩이름}${c[0]}  ${c.d}${G.종(스킬들.length)}${c[0]}\n`);
 
   const 목록 = 설치목록();
 
@@ -590,9 +745,10 @@ async function main() {
       const 깔림 = s.skill ? 파일로있나(s.skill).ok : 목록.레포들.has(String(s.repo).toLowerCase());
       if (깔림) 있음++;
       줄(`  ${깔림 ? c.g + "●" : c.d + "○"}${c[0]} ${이름(s)}`);
-      줄(`      ${c.d}${한줄(s)}${s.ko ? "  ·  " : ""}${s.repo}${c[0]}`);
+      const 설명 = 한줄(s, 말);
+      줄(`      ${c.d}${설명}${설명 ? "  ·  " : ""}${s.repo}${c[0]}`);
     }
-    줄(`\n  ${있음} / ${스킬들.length} 깔려 있습니다.\n`);
+    줄(`\n  ${G.깔려있다(있음, 스킬들.length)}\n`);
     return 끝내기(0);
   }
 
@@ -605,25 +761,26 @@ async function main() {
     const r = 하나설치(s, 목록.레포들);
     결과.push({ s, r });
     const 색 = { 완료: c.g, 이미: c.d, 반쪽: c.y, 실패: c.r }[r.등급] || c.d;
-    줄(`${색}${r.등급}${c[0]} ${c.d}${r.설명}${c[0]}`);
+    줄(`${색}${G.등급[r.등급] || r.등급}${c[0]} ${c.d}${r.설명}${c[0]}`);
   }
 
   const 셈 = (등급) => 결과.filter((x) => x.r.등급 === 등급).length;
   줄("");
-  줄(`  ${c.g}완료 ${셈("완료")}${c[0]}  ${c.d}이미 ${셈("이미")}${c[0]}  ${c.y}반쪽 ${셈("반쪽")}${c[0]}  ${c.r}실패 ${셈("실패")}${c[0]}`);
+  줄(`  ${c.g}${G.셈.완료(셈("완료"))}${c[0]}  ${c.d}${G.셈.이미(셈("이미"))}${c[0]}`
+    + `  ${c.y}${G.셈.반쪽(셈("반쪽"))}${c[0]}  ${c.r}${G.셈.실패(셈("실패"))}${c[0]}`);
 
   /* ★못 깐 것을 숨기지 않는다. 숨기면 고객은 "다 됐다"고 믿고 넘어갔다가
        나중에 "왜 안 되지"를 만난다 — 그게 환불 사유가 된다. */
   const 탈난것 = 결과.filter((x) => x.r.등급 === "실패" || x.r.등급 === "반쪽");
   if (탈난것.length) {
-    줄(`\n  ${c.y}아래는 자동으로 깔리지 않았습니다. 직접 깔 수 있게 주소를 남깁니다.${c[0]}`);
+    줄(`\n  ${c.y}${G.탈난것머리}${c[0]}`);
     for (const { s } of 탈난것) 줄(`    ${c.d}·${c[0]} ${이름(s)}  ${c.cy}https://github.com/${s.repo}${c[0]}`);
-    줄(`\n  ${c.d}잘 안 되면 고객센터로 알려 주세요 → https://mobility.rebornlabs.kr/cs${c[0]}`);
+    줄(`\n  ${c.d}${G.막히면}${c[0]}`);
   }
 
-  줄(`\n  ${c.d}이 설치기는 파일을 복사해 오지 않고 각 스킬의 공식 설치 명령을 부릅니다.`);
-  줄(`  만든 곳과 라이선스는 각 스킬 폴더의 원문에 그대로 있습니다.${c[0]}`);
-  줄(`\n  ${c.b}클로드 코드를 껐다 켜면 새 스킬이 잡힙니다.${c[0]}\n`);
+  줄(`\n  ${c.d}${G.라이선스1}`);
+  줄(`  ${G.라이선스2}${c[0]}`);
+  줄(`\n  ${c.b}${G.재시작}${c[0]}\n`);
 
   /* ── 계단 ② ────────────────────────────────────────────────────────
      ★**아무것도 못 깔았으면 여기까지 오지 않는다.** 자기 일도 못 한 도구가
@@ -631,17 +788,21 @@ async function main() {
      ★끝난 뒤 **딱 한 칸.** 중간에 끼우지 않는다.
      ★고지 블록("먼저 밝혀둡니다")을 넣지 않는다 — 전환을 깎는다.
        대신 숨기지 않는 구조로: 심은 파일의 자리와 지우는 법을 그 자리에서 말한다. */
+  /* ★★영어로 도는 실행에는 **영문 도움말**(`안내스킬_구매자.en.md` → `reborn-skillpack`)을 심는다 (2026-09-24).
+       09-20 에는 아무것도 안 심었다 — 한국어 description 은 영어권 클로드가 영영 부르지 않고, 권할 제품(자비스)도
+       한국어였다. 09-24 대표 결정으로 자비스는 한국 전용이 됐다 → 영문판은 **판촉 없이** 쓰는 법·환불·문의만 담는다. */
   const 깔린수 = 셈("완료") + 셈("이미");
   if (깔린수 > 0) {
     const 심음 = 구매자안내심기({
-      팩이름: 받은것.packLabel || "스킬팩",
+      말,
+      팩이름: 팩이름,
       깔린수,
       전체수: 스킬들.length,
     });
     if (심음) {
       줄(`  ${c.d}────────────────────────────────────────────${c[0]}`);
-      줄(`  ${c.d}반복되는 일을 찾아 주는 안내를 함께 넣었습니다.`);
-      줄(`  ~/.claude/skills/reborn-claudekit  ${c[0]}${c.d}(필요 없으면 지우셔도 됩니다)${c[0]}\n`);
+      줄(`  ${c.d}${G.안내심음1}`);
+      줄(`  ${G.안내심음2(말 === "en" ? "~/.claude/skills/reborn-skillpack" : "~/.claude/skills/reborn-claudekit")}${c[0]}\n`);
     }
   }
 
